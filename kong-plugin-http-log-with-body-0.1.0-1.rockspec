@@ -5,11 +5,7 @@ source = {
   tag = "0.1.0"
 }
 description = {
-  summary = "This plugin allows Kong to send log using HTTP request.",
-  license = "Apache 2.0"
-}
-dependencies = {
-  "lua >= 5.1"
+  summary = "This plugin allows Kong to send log using HTTP request."
 }
 build = {
   type = "builtin",
