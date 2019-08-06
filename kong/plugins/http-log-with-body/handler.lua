@@ -17,7 +17,7 @@ local HttpLogHandler = {}
 
 
 HttpLogHandler.PRIORITY = 12
-HttpLogHandler.VERSION = "0.1.0"
+HttpLogHandler.VERSION = "0.1.1"
 
 
 local queues = {} -- one queue per unique plugin config
