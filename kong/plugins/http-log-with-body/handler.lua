@@ -1,10 +1,12 @@
 local basic_serializer = require "kong.plugins.log-serializers.basic"
+local body_transformer = require "kong.plugins.response-transformer.body_transformer"
 local BatchQueue = require "kong.tools.batch_queue"
 local cjson = require "cjson"
 local url = require "socket.url"
 local http = require "resty.http"
 
-
+local is_json_body = body_transformer.is_json_body
+local cjson_decode = cjson.decode
 local cjson_encode = cjson.encode
 local ngx_encode_base64 = ngx.encode_base64
 local table_concat = table.concat
@@ -140,8 +142,40 @@ local function get_queue_id(conf)
 end
 
 
+local function parse_body(type, data)
+  if type and data and is_json_body(type) then
+    return cjson_decode(data)
+  end
+end
+
+
+function HttpLogHandler:access(conf)
+  if is_json_body(kong.request.get_header("Content-Type")) then
+    local ctx = kong.ctx.plugin;
+    ctx.request_body = kong.request.get_raw_body();
+  end
+end
+
+
+function HttpLogHandler:body_filter(conf)
+  if is_json_body(kong.response.get_header("Content-Type")) then
+    local ctx = kong.ctx.plugin;
+    local chunk, eof = ngx.arg[1], ngx.arg[2];
+    if not eof then
+      ctx.response_body = (ctx.response_body or "") .. (chunk or "")
+    end
+  end
+end
+
+
 function HttpLogHandler:log(conf)
-  local entry = cjson_encode(basic_serializer.serialize(ngx))
+  local ctx = kong.ctx.plugin;
+  local log_obj = basic_serializer.serialize(ngx)
+
+  log_obj.request.body = parse_body(kong.request.get_header("Content-Type"), ctx.request_body)
+  log_obj.response.body = parse_body(kong.response.get_header("Content-Type"), ctx.response_body)
+
+  local entry = cjson_encode(log_obj)
 
   local queue_id = get_queue_id(conf)
   local q = queues[queue_id]
